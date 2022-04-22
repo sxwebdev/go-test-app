@@ -1,0 +1,35 @@
+version: "3.9"
+
+volumes:
+  postgres_data:
+
+services:
+  nats-server:
+    image: nats:2.8-alpine
+    restart: always
+    ports:
+      - ${NATS_PORT}:${NATS_PORT}
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    restart: always
+    ports:
+      - ${MQTT_PORT}:${MQTT_PORT}
+    volumes:
+      - ./config/mosquitto:/mosquitto/config/
+
+  postgres:
+    image: kartoza/postgis:14-3.2
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    environment:
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASS=${DB_PASSWD}
+      - ALLOW_IP_RANGE=0.0.0.0/0
+      - POSTGRES_MULTIPLE_EXTENSIONS=postgis,hstore,postgis_topology,postgis_raster,pgrouting
+    ports:
+      - ${DB_PORT}:${DB_PORT}
+    restart: on-failure
+    healthcheck:
+      test: "exit 0"
