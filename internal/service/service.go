@@ -1,10 +1,7 @@
 package service
 
 import (
-	"fmt"
-	"os"
-	"os/signal"
-	"syscall"
+	"context"
 
 	"github.com/sxwebdev/go-test-app/internal/config"
 	"github.com/sxwebdev/go-test-app/pb"
@@ -13,27 +10,18 @@ import (
 )
 
 type Service struct {
-	config *config.Config
 	logger logger.Logger
+	config *config.Config
 	grpc   *grpc.Server
 
 	pb.UnimplementedHelloServiceServer
 }
 
-func Start(l logger.Logger) error {
+func Start(ctx context.Context, logger logger.Logger, config *config.Config) error {
 	s := &Service{
-		logger: l,
+		logger: logger,
+		config: config,
 	}
-
-	// Read configuration and envirioments
-	config := config.New()
-	if err := config.Validate(); err != nil {
-		return fmt.Errorf("configuration params validation error: %v", err)
-	}
-	s.config = config
-
-	// Start listeners servers
-	sigCh := make(chan os.Signal, 1)
 
 	// Start GRPC server
 	go func() {
@@ -42,9 +30,6 @@ func Start(l logger.Logger) error {
 		}
 	}()
 
-	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-	<-sigCh
-
-	os.Exit(0)
+	<-ctx.Done()
 	return nil
 }

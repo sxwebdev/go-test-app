@@ -63,7 +63,7 @@ func (s *Server) newApiServer() {
 func (s *Server) ApiStart() error {
 	go func() {
 		time.Sleep(time.Millisecond * 50)
-		s.logger.Infof("api server start successfully on port %s", s.config.APIServerPort)
+		s.logger.Infof("api server start successfully on %s", s.config.ApiDSN)
 	}()
-	return s.fiber.Listen(fmt.Sprintf(":%s", s.config.APIServerPort))
+	return s.fiber.Listen(s.config.ApiDSN)
 }

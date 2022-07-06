@@ -5,6 +5,8 @@ export CGO_ENABLED=0
 
 -include .env
 
+MIGRATIONS_DIR = ./sql/migrations/
+
 start:
 	APP_TYPE=server go run -v ./cmd/start
 
@@ -13,6 +15,10 @@ service:
 
 build:
 	go build -o ./build/server -v cmd/server/server.go
+
+upgrade:
+	GOWORK=off go-mod-upgrade
+	go mod tidy
 
 compose-start:
 	docker-compose up -d
@@ -34,14 +40,11 @@ gen-protos:
 	--go-grpc_out=:pb \
 	proto/*.proto
 
-migratecreate:
-	migrate create -ext sql -dir migrations -seq $(name)
+migrate:
+	migrate -path "$(MIGRATIONS_DIR)" -database "$(DB_DSN)" $(filter-out $@,$(MAKECMDGOALS))
 
-migrateup:
-	migrate -path migrations -database "postgres://${DB_USER}:${DB_PASSWD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=disable" up
+create-migration:
+	migrate create -ext sql -dir "$(MIGRATIONS_DIR)" $(filter-out $@,$(MAKECMDGOALS))
 
-migratedown:
-	migrate -path migrations -database "postgres://${DB_USER}:${DB_PASSWD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=disable" down
-
-migratedrop:
-	migrate -path migrations -database "postgres://${DB_USER}:${DB_PASSWD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=disable" drop
+%:
+	@:

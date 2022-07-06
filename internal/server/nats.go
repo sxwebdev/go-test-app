@@ -5,24 +5,12 @@ import (
 	"math/rand"
 
 	"github.com/nats-io/nats.go"
-	"github.com/tkcrm/modules/cfg"
+	"github.com/tkcrm/modules/broker/natsconn"
 )
 
 func (s *Server) natsConnect() error {
 
-	url := cfg.GetNATSURL(s.config.NATSHost, s.config.NATSPort)
-	s.logger.Infof("try to connect to nats: %s", url)
-
-	nc, err := nats.Connect(
-		url,
-		cfg.GetNATSOpts(
-			s.logger,
-			s.config.APPName,
-			s.config.NATSUser,
-			s.config.NATSPass,
-			s.config.NATSToken,
-		)...,
-	)
+	nc, err := natsconn.New(s.logger, s.config.Nats, s.config.AppName)
 	if err != nil {
 		return err
 	}

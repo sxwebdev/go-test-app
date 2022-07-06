@@ -2,25 +2,24 @@ package server
 
 import (
 	"context"
-	"fmt"
-	"os"
-	"os/signal"
 	"sync"
-	"syscall"
 
 	"github.com/eclipse/paho.golang/paho"
 	"github.com/gofiber/fiber/v2"
 	"github.com/nats-io/nats.go"
+	"github.com/pkg/errors"
 	"github.com/sxwebdev/go-test-app/internal/config"
 	"github.com/sxwebdev/go-test-app/internal/listenerserver"
 	"github.com/sxwebdev/go-test-app/internal/store"
 	"github.com/sxwebdev/go-test-app/pb"
+	"github.com/tkcrm/modules/db/bunconn"
 	"github.com/tkcrm/modules/logger"
 )
 
 type Server struct {
-	config *config.Config
 	logger logger.Logger
+	config *config.Config
+	db     *bunconn.BunConn
 	store  store.Store
 
 	fiber *fiber.App
@@ -33,34 +32,41 @@ type Server struct {
 	grpcClient pb.HelloServiceClient
 }
 
-func Start(l logger.Logger) error {
+func New(ctx context.Context, logger logger.Logger, config *config.Config) (*Server, error) {
 	s := &Server{
-		logger:          l,
+		logger:          logger,
+		config:          config,
 		listenerServers: make(map[string]*listenerserver.ListenerServer),
 	}
 
-	// Read configuration and envirioments
-	config := config.New()
-	if err := config.Validate(); err != nil {
-		return fmt.Errorf("configuration params validation error: %v", err)
-	}
-	s.config = config
-
 	// Connect to database
-	if err := s.newDB(); err != nil {
-		return fmt.Errorf("database connection error: %v", err)
+	conn, err := bunconn.New(config.DB, logger)
+	if err != nil {
+		return nil, errors.Wrap(err, "error initializing db")
 	}
+	s.db = conn
+	s.store = s.db
+
+	return s, nil
+}
+
+func (s *Server) Start(ctx context.Context) error {
+	defer func() {
+		s.db.Close()
+		s.logger.Info("server stopped")
+	}()
 
 	// Start listeners servers
-	sigCh := make(chan os.Signal, 1)
 	var wg sync.WaitGroup
-	ctx, cancel := context.WithCancel(context.Background())
-	for server_name, port := range config.TCPServers {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	for server_name, port := range s.config.TCPServers {
 		go func(server_name string, port uint16) {
-			ls, err := listenerserver.New(l, server_name, port)
+			ls, err := listenerserver.New(s.logger, server_name, port)
 			if err != nil {
 				s.logger.Errorf("start server %s error: %+v", server_name, err)
-				sigCh <- os.Interrupt
+				cancel()
 			}
 			go func() {
 				defer wg.Done()
@@ -84,7 +90,7 @@ func Start(l logger.Logger) error {
 		}
 	}()
 
-	// Conect to external service throw GRPC
+	// Conect to external service through GRPC
 	go func() {
 		if err := s.grpcConnect(); err != nil {
 			s.logger.Fatal(err)
@@ -105,9 +111,9 @@ func Start(l logger.Logger) error {
 		}
 	}()
 
-	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-	<-sigCh
-	cancel()
+	s.logger.Info("server successfully started")
+
+	<-ctx.Done()
 
 	// Stop listener servers
 	for _, ls := range s.listenerServers {
@@ -115,9 +121,6 @@ func Start(l logger.Logger) error {
 			s.logger.Errorf("%+v", err)
 		}
 	}
-
-	wg.Wait()
-	os.Exit(0)
 
 	return nil
 }

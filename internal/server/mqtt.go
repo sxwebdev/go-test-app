@@ -10,7 +10,7 @@ import (
 
 func (s *Server) mqttConnect() error {
 
-	url := fmt.Sprintf("%s:%s", s.config.MQTTHost, s.config.MQTTPort)
+	url := fmt.Sprintf("%s:%s", s.config.Mqtt.Host, s.config.Mqtt.Port)
 	s.logger.Infof("try to connect to mqtt broker: %s", url)
 
 	conn, err := net.Dial("tcp", url)
@@ -38,15 +38,15 @@ func (s *Server) mqttConnect() error {
 		KeepAlive:  30,
 		CleanStart: true,
 		ClientID:   "go-test-server",
-		Username:   s.config.MQTTUser,
-		Password:   []byte(s.config.MQTTPass),
+		Username:   s.config.Mqtt.User,
+		Password:   []byte(s.config.Mqtt.Pass),
 	}
 
-	if s.config.MQTTUser != "" {
+	if s.config.Mqtt.User != "" {
 		opts.UsernameFlag = true
 	}
 
-	if s.config.MQTTPass != "" {
+	if s.config.Mqtt.Pass != "" {
 		opts.PasswordFlag = true
 	}
 

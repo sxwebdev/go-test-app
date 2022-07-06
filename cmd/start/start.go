@@ -1,44 +1,51 @@
 package main
 
 import (
-	"os"
+	"context"
+	"os/signal"
+	"syscall"
 
-	"github.com/sakirsensoy/genv"
-	"github.com/sakirsensoy/genv/dotenv"
+	"github.com/sxwebdev/go-test-app/internal/config"
 	"github.com/sxwebdev/go-test-app/internal/server"
 	"github.com/sxwebdev/go-test-app/internal/service"
+	"github.com/tkcrm/modules/cfg"
 	"github.com/tkcrm/modules/logger"
-	"github.com/tkcrm/modules/utils"
 )
 
 func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGSTOP, syscall.SIGTERM)
+	defer stop()
 
-	if utils.GetDefaultString(os.Getenv("ENV"), "dev") == "dev" {
-		dotenv.Load()
+	// Load configuration
+	var config config.Config
+	if err := cfg.LoadConfig(&config); err != nil {
+		logger.New().Fatalf("could not load configuration: %v", err)
 	}
 
-	l := logger.DefaultLogger(
-		utils.GetDefaultString(genv.Key("LOG_LEVEL").String(), "info"),
-		utils.GetDefaultString(genv.Key("APP_MS_NAME").String(), "undefined_app_ms_name"),
+	// Init logger
+	logger := logger.New(
+		logger.WithLogLevel(logger.LogLevel(config.LogLevel)),
+		logger.WithAppName(config.AppName),
 	)
+	defer logger.Sync()
 
-	appType := os.Getenv("APP_TYPE")
-
-	if appType == "" {
-		l.Fatal("undefined APP_TYPE")
-	}
-
-	switch appType {
+	switch config.AppType {
 	case "server":
-		if err := server.Start(l); err != nil {
-			l.Errorf("INIT APP ERROR: %v", err)
+		// Init Server
+		srv, err := server.New(ctx, logger, &config)
+		if err != nil {
+			logger.Fatalf("init server error: %v", err)
+		}
+
+		// Start server
+		if err := srv.Start(ctx); err != nil {
+			logger.Fatalf("start server error: %v", err)
 		}
 	case "service":
-		if err := service.Start(l); err != nil {
-			l.Errorf("INIT APP ERROR: %v", err)
+		if err := service.Start(ctx, logger, &config); err != nil {
+			logger.Errorf("INIT APP ERROR: %v", err)
 		}
 	default:
-		l.Fatalf("unavailable APP_TYPE: %s", appType)
+		logger.Fatalf("unavailable APP_TYPE: %s", config.AppType)
 	}
-
 }

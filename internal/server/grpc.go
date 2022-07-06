@@ -1,8 +1,6 @@
 package server
 
 import (
-	"fmt"
-
 	"github.com/sxwebdev/go-test-app/pb"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -11,7 +9,8 @@ import (
 
 func (s *Server) grpcConnect() error {
 
-	conn, err := grpc.Dial(fmt.Sprintf(":%s", s.config.GRPCPort),
+	conn, err := grpc.Dial(
+		s.config.GrpcDSN,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {

@@ -23,12 +23,12 @@ func (s *Service) newGRPCServer() error {
 
 	reflection.Register(s.grpc)
 
-	listen, err := net.Listen("tcp", fmt.Sprintf(":%s", s.config.GRPCPort))
+	listen, err := net.Listen("tcp", s.config.GrpcDSN)
 	if err != nil {
 		return err
 	}
 
-	s.logger.Infof("GRPC server start successfully on port %s", s.config.GRPCPort)
+	s.logger.Infof("GRPC server start successfully on %s", s.config.GrpcDSN)
 
 	if err := s.grpc.Serve(listen); err != nil {
 		return err
