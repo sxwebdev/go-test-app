@@ -39,6 +39,12 @@ func New(ctx context.Context, logger logger.Logger, config *config.Config) (*Ser
 		listenerServers: make(map[string]*listenerserver.ListenerServer),
 	}
 
+	s.config.TCPServers = map[string]uint16{
+		"server_1": 35100,
+		"server_2": 35101,
+		"server_3": 35102,
+	}
+
 	// Connect to database
 	conn, err := bunconn.New(config.DB, logger)
 	if err != nil {
