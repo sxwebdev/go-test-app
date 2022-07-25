@@ -36,7 +36,7 @@ func (c *Config) Validate() error {
 	}
 
 	// Mqtt
-	if err := c.Nats.Validate(); err != nil {
+	if err := c.Mqtt.Validate(); err != nil {
 		return fmt.Errorf("MQTT_%s", err)
 	}
 
